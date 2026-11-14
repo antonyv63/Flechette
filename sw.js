@@ -1,4 +1,4 @@
-const CACHE = 'flechette-v4';
+const CACHE = 'flechette-v5';
 const ASSETS = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png', 'fonts/bebas-neue.woff2', 'fonts/inter-400.woff2', 'fonts/inter-600.woff2', 'fonts/inter-800.woff2'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS))); self.skipWaiting(); });
 self.addEventListener('activate', e => {

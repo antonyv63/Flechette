@@ -826,17 +826,34 @@ function renderGame() {
   $('#g-score').innerHTML = U.score(st, crPad && !st.over);
   $('#g-turn').innerHTML = turnHTML(st);
   const gl = $('#g-last');
-  gl.innerHTML = st.last ? U.lastText(st) : '';
-  if (st.turn !== S.ui.lastTurn) { gl.classList.remove('flash'); void gl.offsetWidth; gl.classList.add('flash'); S.ui.lastTurn = st.turn; }
+  gl.innerHTML = st.last && !holding(st) ? U.lastText(st) : '';
+  if (st.turn !== S.ui.lastTurn && !holding(st)) { gl.classList.remove('flash'); void gl.offsetWidth; gl.classList.add('flash'); S.ui.lastTurn = st.turn; }
   renderInput(st, crPad);
+}
+const slotHTML = (d, i, empty) => d ? `<div class="slot f ${d.m === 3 ? 't' : d.m === 2 ? 'd' : ''} ${d.m === 0 ? 'x' : ''}">${esc(dLabel(d))}</div>` : `<div class="slot">${empty != null ? empty : i + 1}</div>`;
+/* Affichage de la volée terminée pendant quelques secondes avant de passer au joueur suivant */
+const HOLD_MS = 2200;
+function holding(st) { const h = S.ui.hold; return !!(h && st.last && !st.over && h.turn === st.turn && Date.now() < h.until); }
+function holdHTML(st) {
+  const l = st.last, p = st.players[l.pi], np = st.players[st.cur];
+  const typed = st.type === 'x01' && !l.darts.length;
+  const slots = [0, 1, 2].map(i => slotHTML(l.darts[i], i, '–')).join('');
+  let tot = '';
+  if (st.type === 'x01') tot = l.bust ? 'BUST' : l.total;
+  else if (st.type === 'cricket') tot = (l.marks || 0) + ' ✕';
+  else if (st.type === 'shanghai') tot = l.total || 0;
+  const left = Math.max(0, S.ui.hold.until - Date.now());
+  const head = l.checkout ? 'Game shot' : 'Volée de';
+  return `<div class="turn hold" style="--pc:${p.color}"><div class="turn-who"><span class="dot"></span><span>${head}</span><b>${esc(p.name)}</b></div>
+    ${typed ? `<div class="hold-typed ${l.bust ? 'bust' : ''}">${tot}</div>` : `<div class="slots">${slots}<div class="slot-total ${l.bust ? 'bust' : ''}">${tot}</div></div>`}
+    <div class="turn-info">Au tour de <b style="color:${np.color}">${esc(np.name)}</b></div>
+    <div class="hold-bar"><i style="animation-duration:${left}ms"></i></div></div>`;
 }
 function turnHTML(st) {
   if (st.over) return `<div class="turn over">Partie terminée : ${st.winners.map(i => esc(st.players[i].name)).join(' & ')}</div>`;
+  if (holding(st)) return holdHTML(st);
   const p = st.players[st.cur], U = UI[st.type];
-  const slots = [0, 1, 2].map(i => {
-    const d = st.darts[i];
-    return d ? `<div class="slot f ${d.m === 3 ? 't' : d.m === 2 ? 'd' : ''} ${d.m === 0 ? 'x' : ''}">${esc(dLabel(d))}</div>` : `<div class="slot">${i + 1}</div>`;
-  }).join('');
+  const slots = [0, 1, 2].map(i => slotHTML(st.darts[i], i)).join('');
   const tot = U.visitTotal ? U.visitTotal(st) : '';
   const showSlots = !(st.type === 'x01' && S.ui.input === 'total');
   return `<div class="turn" style="--pc:${p.color}"><div class="turn-who"><span class="dot"></span><span>À toi,</span><b>${esc(p.name)}</b>${p.nick ? `<i>« ${esc(p.nick)} »</i>` : ''}</div>
@@ -855,7 +872,7 @@ function renderInput(st, crPad) {
     const h = UI[st.type].hl ? UI[st.type].hl(st) : {};
     $$('svg.board .seg', el).forEach(s => s.classList.toggle('hl', !!(h.set && h.set.has(+s.dataset.n))));
     $$('svg.board .b-num', el).forEach(s => s.classList.toggle('hl', !!(h.set && h.set.has(+s.dataset.num))));
-    const mk = S.ui.marks.filter(m => m.turn === st.turn).slice(0, st.darts.length);
+    const mk = holding(st) ? S.ui.marks.filter(m => m.turn === st.turn - 1).slice(0, st.last.darts.length) : S.ui.marks.filter(m => m.turn === st.turn).slice(0, st.darts.length);
     $('svg.board .marks', el).innerHTML = mk.map(m => `<circle class="mk" cx="${m.x}" cy="${m.y}" r="6"/>`).join('');
   } else if (S.ui.input === 'total') el.innerHTML = totalHTML(st);
   else if (crPad) el.innerHTML = '';
@@ -884,16 +901,22 @@ function totalHTML(st) {
 /* ---------- Actions ---------- */
 function push(ev) {
   if (!S.st || S.st.over) return;
+  const t0 = S.st.turn;
+  S.ui.hold = null;
   S.game.events.push(ev);
   S.st = replay(S.game);
   saveCur(); vibe(12);
+  if (S.st.turn !== t0 && !S.st.over && S.st.last) {
+    const h = S.ui.hold = { turn: S.st.turn, until: Date.now() + HOLD_MS };
+    setTimeout(() => { if (S.ui.hold === h) { S.ui.hold = null; if (S.st && $('#game').classList.contains('active')) renderGame(); } }, HOLD_MS + 20);
+  }
   handleFx(S.st);
   renderGame();
 }
 function throwDart(n, m) { S.ui.mod = 1; push({ t: 'd', n, m }); }
 function undo() {
   if (!S.game || !S.game.events.length) return;
-  S.game.events.pop(); S.st = replay(S.game); saveCur();
+  S.game.events.pop(); S.st = replay(S.game); saveCur(); S.ui.hold = null;
   S.ui.endShown = false; closeModal(); hideFx();
   try { speechSynthesis.cancel(); } catch (e) {}
   S.ui.lastTurn = S.st.turn; renderGame(); toast('Dernière action annulée');

@@ -298,3 +298,13 @@ details p{margin:0 0 12px;line-height:1.5;font-size:14px;color:#d8d3c6}
   border-radius:12px;padding:9px 14px;font-weight:800;font-size:17px;opacity:0;animation:drawIn .45s cubic-bezier(.2,1.5,.4,1) forwards}
 .draw-row span{font-family:var(--display);font-weight:400;font-size:26px;color:var(--gold);width:20px}
 @keyframes drawIn{from{opacity:0;transform:translateX(-30px) scale(.9)}to{opacity:1;transform:none}}
+
+/* Volée terminée affichée avant le joueur suivant */
+.turn.hold{background:linear-gradient(160deg,color-mix(in srgb,var(--pc) 16%,var(--bg2)),var(--bg2) 70%);position:relative;overflow:hidden}
+.turn.hold .slot.f{animation:none}
+.slot-total.bust,.hold-typed.bust{color:var(--red)}
+.slot-total.bust{font-size:24px}
+.hold-typed{height:44px;margin-top:8px;display:grid;place-items:center;font-family:var(--display);font-size:38px;color:var(--gold)}
+.hold-bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.06)}
+.hold-bar i{display:block;height:100%;width:100%;background:var(--pc);transform-origin:left;animation:holdbar linear forwards}
+@keyframes holdbar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
