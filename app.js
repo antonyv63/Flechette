@@ -625,6 +625,7 @@ const DEF_SETUP = {
   clock: { dir: 'asc', mode: 'simple', bull: true },
   shanghai: { rounds: 7 },
   killer: { lives: 3, mode: 'double' },
+  random: false,
   players: [{ name: '', color: COLORS[0], nick: '' }, { name: '', color: COLORS[1], nick: '' }]
 };
 function loadSetup() {
@@ -769,6 +770,7 @@ function renderPlayers() {
   const roster = store.get('fl_roster', []).filter(r => !names.has(r.name.toLowerCase()));
   $('#roster').innerHTML = roster.length && su.players.length < 8 ? roster.slice(0, 12).map(r => `<button class="chip" data-radd="${esc(r.name)}">${esc(r.name)}</button>`).join('') : '';
   $('#padd').disabled = su.players.length >= 8;
+  $('#prandom').classList.toggle('on', !!su.random);
 }
 const saveSetup = () => store.set('fl_setup', S.setup);
 function freeColor() { const used = S.setup.players.map(p => p.color); return COLORS.find(c => !used.includes(c)) || rnd(COLORS); }
@@ -781,7 +783,7 @@ $('#setup').addEventListener('click', e => {
   else if (t.dataset.pdel != null) { su.players.splice(+t.dataset.pdel, 1); renderPlayers(); }
   else if (t.dataset.radd != null) { const r = store.get('fl_roster', []).find(x => x.name === t.dataset.radd); su.players.push({ name: t.dataset.radd, color: freeColor(), nick: r && r.nick || '' }); renderPlayers(); }
   else if (t.id === 'padd') { if (su.players.length < 8) { su.players.push({ name: '', color: freeColor(), nick: '' }); renderPlayers(); const ins = $$('#plist input'); ins[ins.length - 1].focus(); } }
-  else if (t.id === 'pshuffle') { shuffle(su.players); renderPlayers(); toast('Ordre mélangé'); }
+  else if (t.id === 'prandom') { su.random = !su.random; renderPlayers(); }
   else if (t.id === 'start') { startGame(); }
   saveSetup();
 });
@@ -794,15 +796,19 @@ function startGame() {
   const roster = store.get('fl_roster', []);
   players.forEach(p => { if (/^Joueur \d+$/.test(p.name)) return; const i = roster.findIndex(r => r.name.toLowerCase() === p.name.toLowerCase()); if (i >= 0) roster.splice(i, 1); roster.unshift({ name: p.name, nick: p.nick }); });
   store.set('fl_roster', roster.slice(0, 30));
-  newGame(su.type, JSON.parse(JSON.stringify(su[su.type])), players);
+  newGame(su.type, JSON.parse(JSON.stringify(su[su.type])), su.random ? shuffle(players) : players, !!su.random);
 }
-function newGame(type, cfg, players) {
+function newGame(type, cfg, players, random) {
   if (type === 'killer') cfg.nums = shuffle([...Array(20)].map((_, i) => i + 1)).slice(0, players.length);
-  S.game = { type, cfg, players, events: [], id: Date.now() };
+  S.game = { type, cfg, players, events: [], id: Date.now(), random: !!random };
   S.st = replay(S.game); S.ui.endShown = false; S.ui.marks = []; S.ui.buf = ''; S.ui.mod = 1; S.ui.lastTurn = 0;
   saveCur(); closeModal(); show('game'); renderGame();
   const f = players[0];
-  showFx({ tag: TYPE_L[type] === '01' ? String(cfg.start) : TYPE_L[type].toUpperCase(), big: 'GAME ON !', sub: `${esc(f.name)} lance en premier`, dur: 2200 });
+  const tag = TYPE_L[type] === '01' ? String(cfg.start) : TYPE_L[type].toUpperCase();
+  if (random && players.length > 1) {
+    const order = players.map((p, i) => `<div class="draw-row" style="--pc:${p.color};animation-delay:${0.35 + i * 0.45}s"><span>${i + 1}</span>${esc(p.name)}</div>`).join('');
+    showFx({ tag: 'TIRAGE AU SORT', big: 'GAME ON !', sub: `<div class="draw">${order}</div>`, dur: 3200 + players.length * 450 });
+  } else showFx({ tag, big: 'GAME ON !', sub: `${esc(f.name)} lance en premier`, dur: 2200 });
   say([SET.lang === 'fr' ? `Game on ! ${f.name}, à toi.` : `Game on! ${f.name} to throw first.`]);
 }
 function saveCur() { if (!S.game) return; S.game.over = S.st.over; store.set('fl_current', S.game); }
@@ -1038,7 +1044,7 @@ function showEnd() {
     const a = b.dataset.end;
     if (a === 'undo') { undo(); return; }
     finalize(); closeModal();
-    if (a === 'rematch') { const g = S.game, pl = g.players.slice(1).concat(g.players[0]); const cfg = JSON.parse(JSON.stringify(g.cfg)); delete cfg.nums; newGame(g.type, cfg, pl); }
+    if (a === 'rematch') { const g = S.game, pl = g.random ? shuffle(g.players.slice()) : g.players.slice(1).concat(g.players[0]); const cfg = JSON.parse(JSON.stringify(g.cfg)); delete cfg.nums; newGame(g.type, cfg, pl, g.random); }
     else if (a === 'new') show('setup');
     else show('home');
   }));
