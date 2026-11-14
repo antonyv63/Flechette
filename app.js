@@ -1119,6 +1119,24 @@ function saveStats(st) {
   (st.throws || []).forEach(t => { const p = st.players[t.pi]; if (!p) return; const k = p.name.trim().toLowerCase(); heat[k] = heat[k] || newHeat(); heatAdd(heat[k], t); });
   store.set('fl_heat', heat);
 }
+function deletePlayerStats(k) {
+  const r = store.get('fl_stats', {})[k], name = r ? r.name : k;
+  modal(`<h3>Supprimer ${esc(name)} ?</h3>
+    <p>Choisis ce que tu veux effacer. Impossible de revenir en arrière.</p>
+    <button class="btn danger" data-pd="stats">Effacer ses stats et sa carte de chaleur</button>
+    <button class="btn danger" data-pd="all">Tout effacer : stats, trophées et joueur enregistré</button>
+    <button class="btn" data-pd="no">Annuler</button>`);
+  $$('#modal [data-pd]').forEach(b => b.addEventListener('click', () => {
+    const a = b.dataset.pd; closeModal(); if (a === 'no') return;
+    const del = key => { const o = store.get(key, {}); delete o[k]; store.set(key, o); };
+    del('fl_stats'); del('fl_heat');
+    if (a === 'all') {
+      del('fl_trophies');
+      store.set('fl_roster', store.get('fl_roster', []).filter(x => x.name.trim().toLowerCase() !== k));
+    }
+    renderStats(); toast(`${name} : ${a === 'all' ? 'tout est effacé' : 'stats effacées'}`);
+  }));
+}
 function renderStats() {
   const all = Object.values(store.get('fl_stats', {})).sort((a, b) => b.games - a.games);
   if (!all.length) { $('#stats-list').innerHTML = `<div class="empty">Pas encore de stats.<br>Joue une partie jusqu'au bout et tes moyennes, 180 et records apparaîtront ici.</div>`; return; }
@@ -1130,12 +1148,13 @@ function renderStats() {
       ['Horloge', r.clock.best ? r.clock.best + ' fl.' : '–'], ['Best volée', x.hiV || '–']];
     return `<div class="scard" style="--pc:${r.color || '#ffc940'}"><h3>${esc(r.name)} <small>${Object.entries(r.types).map(([k, v]) => `${TYPE_L[k] === '01' ? '01' : TYPE_L[k]} ×${v}`).join(' · ')}</small></h3>
       <div class="sgrid">${cells.map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>
-      <button class="btn small heat-btn" data-heat="${esc(r.name.trim().toLowerCase())}">Carte de chaleur</button></div>`;
+      <div class="scard-actions"><button class="btn" data-heat="${esc(r.name.trim().toLowerCase())}">Carte de chaleur</button><button class="btn danger" data-pdelstats="${esc(r.name.trim().toLowerCase())}">Supprimer</button></div></div>`;
   }).join('') + `<button class="btn ghost" id="stats-reset">Effacer toutes les statistiques</button>`;
   $$('#stats-list [data-heat]').forEach(b => b.addEventListener('click', () => {
     const k = b.dataset.heat, r = store.get('fl_stats', {})[k] || { name: k, color: '#ffc940' };
     heatSheet([{ name: r.name, color: r.color, h: store.get('fl_heat', {})[k] || newHeat() }]);
   }));
+  $$('#stats-list [data-pdelstats]').forEach(b => b.addEventListener('click', () => deletePlayerStats(b.dataset.pdelstats)));
   $('#stats-reset').addEventListener('click', () => {
     modal(`<h3>Effacer les stats ?</h3><p>Toutes les moyennes, records et cartes de chaleur seront supprimés (les trophées restent). Impossible de revenir en arrière.</p><button class="btn primary" id="yes-reset">EFFACER</button><button class="btn" id="no-reset">Annuler</button>`);
     $('#yes-reset').addEventListener('click', () => { store.del('fl_stats'); store.del('fl_heat'); closeModal(); renderStats(); toast('Stats effacées'); });

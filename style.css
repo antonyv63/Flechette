@@ -316,7 +316,8 @@ details p{margin:0 0 12px;line-height:1.5;font-size:14px;color:#d8d3c6}
 .gm-note{font-size:12px;margin:-4px 0 16px;text-align:center}
 
 /* Carte de chaleur */
-.heat-btn{margin-top:10px;width:100%}
+.scard-actions{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
+.scard-actions .btn{margin:0;padding:12px 14px;font-size:14px}
 .heat-chips{margin-bottom:10px}
 .heat-name{font-weight:800;margin:-6px 0 8px}
 .heat-wrap{display:grid;place-items:center;margin:4px 0}
