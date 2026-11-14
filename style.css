@@ -308,3 +308,55 @@ details p{margin:0 0 12px;line-height:1.5;font-size:14px;color:#d8d3c6}
 .hold-bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.06)}
 .hold-bar i{display:block;height:100%;width:100%;background:var(--pc);transform-origin:left;animation:holdbar linear forwards}
 @keyframes holdbar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+
+/* Menu de partie */
+.burger{display:flex;flex-direction:column;gap:4px;width:18px}
+.burger i{display:block;height:2px;border-radius:2px;background:var(--text)}
+.btn.danger{background:#2b1215;color:#ff8b92;border-color:rgba(227,50,60,.45)}
+.gm-note{font-size:12px;margin:-4px 0 16px;text-align:center}
+
+/* Carte de chaleur */
+.heat-btn{margin-top:10px;width:100%}
+.heat-chips{margin-bottom:10px}
+.heat-name{font-weight:800;margin:-6px 0 8px}
+.heat-wrap{display:grid;place-items:center;margin:4px 0}
+svg.board.heat{width:min(100%,340px);pointer-events:none}
+svg.board.heat .seg{stroke:#0b0d0c;stroke-width:.8;transition:none}
+.hdot{fill:#fff;fill-opacity:.8;stroke:#000;stroke-width:.8}
+.heat-legend{display:flex;align-items:center;gap:8px;justify-content:center;font-size:11px;color:var(--muted);margin:6px 0 12px}
+.heat-legend i{width:140px;height:8px;border-radius:8px;background:linear-gradient(90deg,hsl(225,92%,44%),hsl(160,92%,46%),hsl(60,92%,52%),hsl(0,92%,56%))}
+.heat-grid{margin-bottom:10px}
+.heat-grid b{font-size:22px}
+.hi-top{font-size:14px;margin:10px 0;color:var(--text)}
+.hi-top small{color:var(--muted)}
+.hi-side{font-size:14px;line-height:1.45;margin:10px 0}
+.hi-bar{display:flex;gap:3px;margin-top:8px;font-size:11px;font-weight:800}
+.hi-bar span{background:var(--panel2);border-radius:6px;padding:6px 4px;text-align:center;white-space:nowrap;overflow:hidden;min-width:44px}
+.hi-bar span:nth-child(2){background:color-mix(in srgb,var(--gold) 30%,var(--panel2))}
+.heat-note{font-size:12px!important;margin:8px 0 14px}
+
+/* Trophées */
+.menu .tile:last-child:nth-child(odd){grid-column:1/-1}
+.medal{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-size:20px;letter-spacing:.02em;
+  background:#1f2824;color:#4f6157;border:2px solid #2f3c35;flex:none;text-align:center;line-height:1}
+.medal.sm{font-size:15px}
+.medal.on{background:radial-gradient(circle at 35% 28%,#fff6c2 0%,#ffc940 42%,#b87500 100%);color:#3b2600;border-color:#ffe08a;box-shadow:0 0 18px -5px var(--gold)}
+.tro-prog{font-size:14px;color:var(--muted);margin:4px 0 12px}
+.tro-prog b{font-family:var(--display);font-size:28px;color:var(--gold);font-weight:400}
+.tro-prog .bar i{background:var(--gold)}
+.tro-grid{display:grid;grid-template-columns:1fr;gap:8px}
+.tcard{display:flex;gap:12px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px;opacity:.75}
+.tcard.on{opacity:1;border-color:rgba(255,201,64,.35);background:linear-gradient(135deg,rgba(255,201,64,.10),var(--panel))}
+.tcard b{display:block;font-size:15px}
+.tcard small{display:block;color:var(--muted);font-size:12px;line-height:1.35;margin-top:2px}
+.tcard em{display:block;color:var(--gold);font-size:11px;font-style:normal;margin-top:4px;font-weight:600}
+#trophy{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 12px);transform:translate(-50%,-160%);z-index:95;transition:transform .45s cubic-bezier(.2,1.4,.4,1);width:min(94vw,520px)}
+#trophy.show{transform:translate(-50%,0)}
+.tb{display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,#2a2208,#14110a);border:1px solid #ffd76a;border-radius:18px;padding:12px 14px;box-shadow:0 14px 40px rgba(0,0,0,.6),0 0 30px -10px var(--gold)}
+.tb-t small{display:block;font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:.08em;font-weight:800}
+.tb-t b{display:block;font-family:var(--display);font-weight:400;font-size:26px;letter-spacing:.03em;line-height:1.05}
+.tb-t span{display:block;font-size:12px;color:var(--muted)}
+.end-tro{text-align:left;margin:0 0 14px}
+.tmini{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+.tmini .medal{width:40px;height:40px;font-size:15px}
+.tmini b{display:block;font-size:14px}.tmini small{color:var(--muted);font-size:12px}

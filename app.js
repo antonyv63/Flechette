@@ -219,7 +219,7 @@ function checkout(rem, left, out) {
    MOTEURS DE JEU — chaque partie = liste d'événements rejouée (annuler = facile)
    ===================================================================== */
 function base(g) {
-  return { type: g.type, cfg: g.cfg, cur: 0, roundStart: 0, round: 1, turn: 0, darts: [], over: false, winners: [], fx: [], last: null };
+  return { type: g.type, cfg: g.cfg, cur: 0, roundStart: 0, round: 1, turn: 0, darts: [], over: false, winners: [], fx: [], last: null, throws: [] };
 }
 function nextTurn(st, info) {
   st.last = Object.assign({ pi: st.cur, darts: st.darts.slice(), turn: st.turn }, info || {});
@@ -272,7 +272,8 @@ const X01 = {
     if (total === 180) s.t180++; else if (total >= 140) s.t140++; else if (total >= 100) s.t100++;
     if (total > s.hiV) s.hiV = total;
     const info = { total, bust, rem: p.score, typed: typed != null ? typed : null };
-    if (bust) { st.fx.push({ k: 'bust', pi, typed }); nextTurn(st, info); return; }
+    if (total === 26) s.bnb = (s.bnb || 0) + 1;
+    if (bust) { p.legBusts = (p.legBusts || 0) + 1; st.fx.push({ k: 'bust', pi, typed }); nextTurn(st, info); return; }
     if (p.score === 0) {
       s.co++; if (total > s.hiCo) s.hiCo = total;
       if (!s.bestLeg || p.legDarts < s.bestLeg) s.bestLeg = p.legDarts;
@@ -284,7 +285,7 @@ const X01 = {
       nextTurn(st, info);
       if (match) { st.over = true; st.winners = [pi]; return; }
       st.leg++; st.legStarter = (st.legStarter + 1) % st.players.length;
-      st.players.forEach(q => { q.score = c.start; q.opened = c.in !== 'double'; q.legDarts = 0; q.legVisits = 0; });
+      st.players.forEach(q => { q.score = c.start; q.opened = c.in !== 'double'; q.legDarts = 0; q.legVisits = 0; q.legBusts = 0; });
       st.cur = st.legStarter; st.roundStart = st.legStarter; st.round = 1;
       return;
     }
@@ -437,7 +438,8 @@ function replay(game) {
 }
 function applyEv(E, st, ev) {
   if (st.over) return;
-  if (ev.t === 'd') E.dart(st, { n: ev.n, m: ev.m });
+  if (ev.t === 'd') { st.throws.push({ pi: st.cur, n: ev.n, m: ev.m, x: ev.x, y: ev.y }); E.dart(st, { n: ev.n, m: ev.m }); }
+  else if (ev.t === 'quit') { st.darts = []; st.over = true; st.abandoned = true; st.winners = []; st.fx.push({ k: 'quit' }); }
   else if (ev.t === 'v') E.visit(st, ev.total, ev.nd);
   else if (ev.t === 'end') { const t0 = st.turn; let g = 0; while (st.turn === t0 && !st.over && g++ < 4) E.dart(st, { n: 0, m: 0 }); }
 }
@@ -646,6 +648,7 @@ function show(id) {
   if (id === 'legends') renderLegends();
   if (id === 'stats') renderStats();
   if (id === 'settings') renderSettings();
+  if (id === 'trophies') renderTrophies();
 }
 let wl = null;
 async function wake(on) {
@@ -906,6 +909,8 @@ function push(ev) {
   S.game.events.push(ev);
   S.st = replay(S.game);
   saveCur(); vibe(12);
+  const won = checkTrophies(S.st, S.st.turn !== t0);
+  if (won.length) { saveCur(); trophyBanner(won); }
   if (S.st.turn !== t0 && !S.st.over && S.st.last) {
     const h = S.ui.hold = { turn: S.st.turn, until: Date.now() + HOLD_MS };
     setTimeout(() => { if (S.ui.hold === h) { S.ui.hold = null; if (S.st && $('#game').classList.contains('active')) renderGame(); } }, HOLD_MS + 20);
@@ -913,7 +918,7 @@ function push(ev) {
   handleFx(S.st);
   renderGame();
 }
-function throwDart(n, m) { S.ui.mod = 1; push({ t: 'd', n, m }); }
+function throwDart(n, m, x, y) { S.ui.mod = 1; const ev = { t: 'd', n, m }; if (x != null) { ev.x = +x; ev.y = +y; } push(ev); }
 function undo() {
   if (!S.game || !S.game.events.length) return;
   S.game.events.pop(); S.st = replay(S.game); saveCur(); S.ui.hold = null;
@@ -941,7 +946,7 @@ $('#game').addEventListener('click', e => {
   const t = e.target.closest('button, .seg, .b-bg');
   if (!t || !S.st) return;
   const st = S.st;
-  if (t.id === 'g-home') { show('home'); return; }
+  if (t.id === 'g-home') { gameMenu(); return; }
   if (t.dataset.input) { S.ui.input = t.dataset.input; SET.input = t.dataset.input; saveSet(); S.ui.buf = ''; renderGame(); return; }
   if (t.dataset.act) {
     const a = t.dataset.act;
@@ -964,14 +969,16 @@ $('#game').addEventListener('click', e => {
   if (t.dataset.q) { submitTotal(+t.dataset.q); return; }
   if (t.closest('svg.board')) {
     const svg = t.closest('svg.board'), n = +t.dataset.n, m = +t.dataset.m;
+    let px = null, py = null;
     try {
       const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
       const loc = pt.matrixTransform(svg.getScreenCTM().inverse());
+      px = Math.round(loc.x); py = Math.round(loc.y);
       S.ui.marks = S.ui.marks.filter(x => x.turn === st.turn).slice(0, st.darts.length);
-      S.ui.marks.push({ x: loc.x.toFixed(1), y: loc.y.toFixed(1), turn: st.turn });
+      S.ui.marks.push({ x: px, y: py, turn: st.turn });
     } catch (err) {}
     if (n === 25 && m === 3) return;
-    throwDart(m === 0 ? 0 : n, m);
+    throwDart(m === 0 ? 0 : n, m, px, py);
     return;
   }
   if (t.dataset.n != null && t.closest('.pad')) {
@@ -1050,22 +1057,31 @@ function handleFx(st) {
 }
 
 /* ---------- Fin de partie ---------- */
-function showEnd() {
+function showEnd(noFx) {
   const st = S.st; if (!st || !st.over || S.ui.endShown) return;
-  S.ui.endShown = true; hideFx();
+  S.ui.endShown = true; hideFx(); tq.length = 0; clearTimeout(tTimer); $('#trophy').classList.remove('show'); tShowing = false;
   const W = st.winners.map(i => st.players[i]), rows = UI[st.type].stats(st);
-  const html = `<div class="end"><div class="end-tag">${W.length > 1 ? 'ÉGALITÉ' : 'VICTOIRE'}</div>
-    <h2>${W.map(p => esc(p.name)).join(' & ')}</h2><p class="end-sub">${rnd(T.win)}</p>
+  let head;
+  if (st.abandoned) {
+    const rk = ranking(st), L = st.players[rk[0]];
+    head = `<div class="end-tag">PARTIE TERMINÉE</div><h2>${st.players.length > 1 ? 'En tête : ' + esc(L.name) : esc(L.name)}</h2>
+      <p class="end-sub">${st.players.length > 1 ? 'Classement au moment de l\'arrêt : ' + rk.map((i, k) => `${k + 1}. ${esc(st.players[i].name)}`).join(' · ') : 'Partie arrêtée avant la fin.'}</p>`;
+  } else head = `<div class="end-tag">${W.length > 1 ? 'ÉGALITÉ' : 'VICTOIRE'}</div><h2>${W.map(p => esc(p.name)).join(' & ')}</h2><p class="end-sub">${rnd(T.win)}</p>`;
+  const tw = (S.game.trophies || []).map(x => { const tr = TROPHIES.find(t => t.id === x.id), p = st.players[x.pi]; return tr && p ? `<div class="tmini"><div class="medal on">${tr.b}</div><div><b>${tr.name}</b><small>${esc(p.name)}</small></div></div>` : ''; }).join('');
+  const html = `<div class="end">${head}
+    ${tw ? `<div class="end-tro"><div class="sec" style="margin-top:0">Trophées débloqués</div>${tw}</div>` : ''}
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th></th>${st.players.map(p => `<th style="color:${p.color}">${esc(p.name)}</th>`).join('')}</tr></thead>
     <tbody>${rows.map(r => `<tr><td>${r[0]}</td>${r.slice(1).map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
     <button class="btn primary" data-end="rematch">REVANCHE</button>
+    <button class="btn" data-end="heat">Cartes de chaleur de la partie</button>
     <button class="btn" data-end="new">Nouvelle partie</button>
     <button class="btn" data-end="home">Accueil</button>
     <button class="btn ghost" data-end="undo">Annuler la dernière fléchette</button></div>`;
-  modal(html, true); confetti(110);
+  modal(html, true); if (!st.abandoned && !noFx) confetti(110);
   $$('#modal [data-end]').forEach(b => b.addEventListener('click', () => {
     const a = b.dataset.end;
     if (a === 'undo') { undo(); return; }
+    if (a === 'heat') { heatSheet(st.players.map((p, i) => ({ name: p.name, color: p.color, h: heatFrom(st.throws.filter(t => t.pi === i)) })), () => { S.ui.endShown = false; showEnd(true); }); return; }
     finalize(); closeModal();
     if (a === 'rematch') { const g = S.game, pl = g.random ? shuffle(g.players.slice()) : g.players.slice(1).concat(g.players[0]); const cfg = JSON.parse(JSON.stringify(g.cfg)); delete cfg.nums; newGame(g.type, cfg, pl, g.random); }
     else if (a === 'new') show('setup');
@@ -1085,8 +1101,8 @@ function saveStats(st) {
   st.players.forEach((p, i) => {
     const key = p.name.trim().toLowerCase();
     const r = all[key] || { name: p.name, color: p.color, games: 0, wins: 0, types: {}, x01: { pts: 0, darts: 0, t180: 0, t140: 0, t100: 0, hiCo: 0, hiV: 0, bestAvg: 0, bestLeg: 0 }, cr: { marks: 0, darts: 0 }, clock: { best: 0 } };
-    r.name = p.name; r.color = p.color; r.games++; if (st.winners.includes(i)) r.wins++;
-    r.types[st.type] = (r.types[st.type] || 0) + 1;
+    r.name = p.name; r.color = p.color;
+    if (!st.abandoned) { r.games++; if (st.winners.includes(i)) r.wins++; r.types[st.type] = (r.types[st.type] || 0) + 1; }
     if (st.type === 'x01') {
       const x = r.x01, s = p.s;
       x.pts += s.pts; x.darts += s.darts; x.t180 += s.t180; x.t140 += s.t140; x.t100 += s.t100;
@@ -1099,10 +1115,13 @@ function saveStats(st) {
     all[key] = r;
   });
   store.set('fl_stats', all);
+  const heat = store.get('fl_heat', {});
+  (st.throws || []).forEach(t => { const p = st.players[t.pi]; if (!p) return; const k = p.name.trim().toLowerCase(); heat[k] = heat[k] || newHeat(); heatAdd(heat[k], t); });
+  store.set('fl_heat', heat);
 }
 function renderStats() {
   const all = Object.values(store.get('fl_stats', {})).sort((a, b) => b.games - a.games);
-  if (!all.length) { $('#stats-list').innerHTML = `<div class="empty">🎯<br>Pas encore de stats.<br>Joue une partie jusqu'au bout et tes moyennes, 180 et records apparaîtront ici.</div>`; return; }
+  if (!all.length) { $('#stats-list').innerHTML = `<div class="empty">Pas encore de stats.<br>Joue une partie jusqu'au bout et tes moyennes, 180 et records apparaîtront ici.</div>`; return; }
   $('#stats-list').innerHTML = all.map(r => {
     const x = r.x01, avg = x.darts ? (x.pts / x.darts * 3).toFixed(1) : '–';
     const cells = [['Parties', r.games], ['Victoires', `${r.wins} <small style="font-size:12px">(${Math.round(r.wins / r.games * 100)}%)</small>`], ['Moy. 01', avg],
@@ -1110,11 +1129,16 @@ function renderStats() {
       ['Best leg 501', x.bestLeg ? x.bestLeg + ' fl.' : '–'], ['MPR cricket', r.cr.darts ? (r.cr.marks / (r.cr.darts / 3)).toFixed(2) : '–'],
       ['Horloge', r.clock.best ? r.clock.best + ' fl.' : '–'], ['Best volée', x.hiV || '–']];
     return `<div class="scard" style="--pc:${r.color || '#ffc940'}"><h3>${esc(r.name)} <small>${Object.entries(r.types).map(([k, v]) => `${TYPE_L[k] === '01' ? '01' : TYPE_L[k]} ×${v}`).join(' · ')}</small></h3>
-      <div class="sgrid">${cells.map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div></div>`;
+      <div class="sgrid">${cells.map(([l, v]) => `<div><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+      <button class="btn small heat-btn" data-heat="${esc(r.name.trim().toLowerCase())}">Carte de chaleur</button></div>`;
   }).join('') + `<button class="btn ghost" id="stats-reset">Effacer toutes les statistiques</button>`;
+  $$('#stats-list [data-heat]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.heat, r = store.get('fl_stats', {})[k] || { name: k, color: '#ffc940' };
+    heatSheet([{ name: r.name, color: r.color, h: store.get('fl_heat', {})[k] || newHeat() }]);
+  }));
   $('#stats-reset').addEventListener('click', () => {
-    modal(`<h3>Effacer les stats ?</h3><p>Toutes les moyennes et records seront supprimés. Impossible de revenir en arrière.</p><button class="btn primary" id="yes-reset">EFFACER</button><button class="btn" id="no-reset">Annuler</button>`);
-    $('#yes-reset').addEventListener('click', () => { store.del('fl_stats'); closeModal(); renderStats(); toast('Stats effacées'); });
+    modal(`<h3>Effacer les stats ?</h3><p>Toutes les moyennes, records et cartes de chaleur seront supprimés (les trophées restent). Impossible de revenir en arrière.</p><button class="btn primary" id="yes-reset">EFFACER</button><button class="btn" id="no-reset">Annuler</button>`);
+    $('#yes-reset').addEventListener('click', () => { store.del('fl_stats'); store.del('fl_heat'); closeModal(); renderStats(); toast('Stats effacées'); });
     $('#no-reset').addEventListener('click', closeModal);
   });
 }
@@ -1136,7 +1160,7 @@ function renderSettings() {
   $('#set-list').innerHTML = rows.map(([k, l, d]) => `<div class="set-row"><div><b>${l}</b><small>${d}</small></div><button class="sw ${SET[k] ? 'on' : ''}" data-sw="${k}" aria-label="${l}"></button></div>`).join('') +
     `<div class="set-row"><div><b>🗣️ Langue de l'annonceur</b><small>L'anglais, c'est plus pro !</small></div><div class="chips"><button class="chip ${SET.lang === 'en' ? 'on' : ''}" data-lang="en">English</button><button class="chip ${SET.lang === 'fr' ? 'on' : ''}" data-lang="fr">Français</button></div></div>
      <button class="btn" id="test-voice">Tester l'annonceur</button>
-     <button class="btn ghost" id="reset-all">Tout réinitialiser (joueurs, stats, partie en cours)</button>
+     <button class="btn ghost" id="reset-all">Tout réinitialiser (joueurs, stats, trophées, partie en cours)</button>
      <p class="intro" style="text-align:center;font-size:12px;margin-top:20px">Fléchette 🎯 · Astuce : sur iPhone, Partager → « Sur l'écran d'accueil » pour l'avoir comme une vraie appli.</p>`;
 }
 $('#settings').addEventListener('click', e => {
@@ -1145,11 +1169,238 @@ $('#settings').addEventListener('click', e => {
   else if (t.dataset.lang) { SET.lang = t.dataset.lang; saveSet(); renderSettings(); }
   else if (t.id === 'test-voice') { const was = SET.caller; SET.caller = true; say([SET.lang === 'fr' ? 'Cent quatre-vingts !' : 'One hundred and eighty!']); SET.caller = was; }
   else if (t.id === 'reset-all') {
-    modal(`<h3>Tout réinitialiser ?</h3><p>Joueurs enregistrés, statistiques et partie en cours seront effacés.</p><button class="btn primary" id="yes-all">TOUT EFFACER</button><button class="btn" id="no-all">Annuler</button>`);
-    $('#yes-all').addEventListener('click', () => { ['fl_stats', 'fl_roster', 'fl_current', 'fl_setup'].forEach(store.del); S.setup = loadSetup(); closeModal(); toast('Tout est remis à zéro'); });
+    modal(`<h3>Tout réinitialiser ?</h3><p>Joueurs enregistrés, statistiques, cartes de chaleur, trophées et partie en cours seront effacés.</p><button class="btn primary" id="yes-all">TOUT EFFACER</button><button class="btn" id="no-all">Annuler</button>`);
+    $('#yes-all').addEventListener('click', () => { ['fl_stats', 'fl_roster', 'fl_current', 'fl_setup', 'fl_heat', 'fl_trophies'].forEach(store.del); S.setup = loadSetup(); closeModal(); toast('Tout est remis à zéro'); });
     $('#no-all').addEventListener('click', closeModal);
   }
 });
+
+
+/* =====================================================================
+   MENU DE PARTIE & FIN ANTICIPÉE
+   ===================================================================== */
+function gameMenu() {
+  const st = S.st;
+  modal(`<h3>Pause</h3>
+    <button class="btn primary" data-gm="resume">REPRENDRE</button>
+    <button class="btn" data-gm="home">Retour à l'accueil</button>
+    <p class="gm-note">La partie reste sauvegardée, tu pourras la reprendre depuis l'accueil.</p>
+    ${st && !st.over ? '<button class="btn danger" data-gm="quit">Terminer la partie</button>' : ''}`);
+  $$('#modal [data-gm]').forEach(b => b.addEventListener('click', () => {
+    const a = b.dataset.gm;
+    if (a === 'resume') closeModal();
+    else if (a === 'home') { closeModal(); show('home'); }
+    else if (a === 'quit') confirmQuit();
+  }));
+}
+function confirmQuit() {
+  modal(`<h3>Terminer la partie ?</h3>
+    <p>La partie s'arrête ici et le classement actuel s'affiche. Personne ne gagne officiellement, mais les moyennes, 180 et impacts sont gardés dans les stats.</p>
+    <button class="btn danger" data-cq="yes">Oui, terminer la partie</button>
+    <button class="btn" data-cq="no">Non, continuer à jouer</button>`);
+  $$('#modal [data-cq]').forEach(b => b.addEventListener('click', () => {
+    closeModal();
+    if (b.dataset.cq === 'yes') { S.ui.hold = null; push({ t: 'quit' }); }
+  }));
+}
+function ranking(st) {
+  const P = st.players;
+  const key = {
+    x01: p => [-(p.sets || 0), -(p.legs || 0), p.score],
+    cricket: p => [-CR_T.filter(t => p.marks[t] >= 3).length, st.cfg.mode === 'cut' ? p.pts : -p.pts],
+    clock: p => [-p.idx, p.s.darts],
+    shanghai: p => [-p.pts],
+    killer: p => [p.out ? 1 : 0, -p.lives]
+  }[st.type];
+  return P.map((_, i) => i).sort((a, b) => {
+    const A = key(P[a]), B = key(P[b]);
+    for (let k = 0; k < A.length; k++) if (A[k] !== B[k]) return A[k] - B[k];
+    return a - b;
+  });
+}
+
+/* =====================================================================
+   CARTE DE CHALEUR
+   ===================================================================== */
+const newHeat = () => ({ c: {}, miss: 0, total: 0, pts: [] });
+function heatAdd(h, t) {
+  h.total++;
+  if (!t.m || !t.n) h.miss++; else { const k = t.n + '-' + t.m; h.c[k] = (h.c[k] || 0) + 1; }
+  if (t.x != null) { h.pts.push([t.x, t.y]); if (h.pts.length > 800) h.pts.splice(0, h.pts.length - 800); }
+}
+function heatFrom(throws) { const h = newHeat(); throws.forEach(t => heatAdd(h, t)); return h; }
+const pct = (v, t) => t ? Math.round(v / t * 100) + ' %' : '–';
+function heatColor(t) { return `hsl(${Math.round(225 * (1 - t))},92%,${44 + 12 * t}%)`; }
+function heatSVG(h) {
+  const box = document.createElement('div'); box.innerHTML = boardSVG(false);
+  const svg = box.firstElementChild; svg.classList.add('heat');
+  const vals = Object.values(h.c), max = Math.max(1, ...vals);
+  svg.querySelectorAll('.seg').forEach(el => {
+    const c = h.c[el.dataset.n + '-' + el.dataset.m] || 0;
+    if (c) el.style.fill = heatColor(Math.pow(c / max, 0.65));
+    else el.style.fill = el.classList.contains('b-light') ? '#2c3330' : el.classList.contains('b-dark') ? '#1b1f1d' : '#232926';
+  });
+  svg.querySelector('.marks').innerHTML = h.pts.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.4" class="hdot"/>`).join('');
+  return box.innerHTML;
+}
+function heatInsights(h) {
+  const tot = h.total; if (!tot) return '';
+  const num = {}; let tri = 0, dbl = 0;
+  Object.entries(h.c).forEach(([k, v]) => { const [n, m] = k.split('-').map(Number); num[n] = (num[n] || 0) + v; if (m === 3) tri += v; if (m === 2) dbl += v; });
+  const top = Object.entries(h.c).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => { const [n, m] = k.split('-').map(Number); return `${dLabel({ n, m })} <small>${pct(v, tot)}</small>`; });
+  const topN = Object.entries(num).sort((a, b) => b[1] - a[1])[0];
+  const l = num[5] || 0, c = num[20] || 0, r = num[1] || 0, z = l + c + r;
+  let side = '';
+  if (z >= 9) {
+    const verdict = l > r * 1.4 && l >= 3 ? 'tu pars plutôt <b>à gauche</b>, vers le 5' : r > l * 1.4 && r >= 3 ? 'tu pars plutôt <b>à droite</b>, vers le 1' : 'ton tir est <b>bien centré</b>';
+    side = `<div class="hi-side">Autour du 20, ${verdict}.<div class="hi-bar"><span style="flex:${l || .01}">5 · ${pct(l, z)}</span><span style="flex:${c || .01}">20 · ${pct(c, z)}</span><span style="flex:${r || .01}">1 · ${pct(r, z)}</span></div></div>`;
+  }
+  return `<div class="sgrid heat-grid">
+      <div><b>${tot}</b><span>Fléchettes</span></div>
+      <div><b>${topN ? (topN[0] === '25' ? 'Bull' : topN[0]) : '–'}</b><span>Numéro favori</span></div>
+      <div><b>${pct(h.miss, tot)}</b><span>Ratés</span></div>
+      <div><b>${pct(tri, tot)}</b><span>Triples</span></div>
+      <div><b>${pct(dbl, tot)}</b><span>Doubles</span></div>
+      <div><b>${h.pts.length}</b><span>Impacts précis</span></div>
+    </div>
+    ${top.length ? `<div class="hi-top">Zones les plus touchées : ${top.join(' · ')}</div>` : ''}${side}`;
+}
+function heatSheet(list, back) {
+  let sel = 0;
+  const draw = () => {
+    const it = list[sel];
+    modal(`<h3>Carte de chaleur</h3>
+      ${list.length > 1 ? `<div class="chips heat-chips">${list.map((x, i) => `<button class="chip ${i === sel ? 'on' : ''}" data-hp="${i}" style="${i === sel ? '' : `color:${x.color}`}">${esc(x.name)}</button>`).join('')}</div>` : `<div class="heat-name" style="color:${it.color}">${esc(it.name)}</div>`}
+      ${it.h.total ? `<div class="heat-wrap">${heatSVG(it.h)}</div>
+        <div class="heat-legend"><span>Rare</span><i></i><span>Fréquent</span></div>${heatInsights(it.h)}
+        <p class="heat-note">Les couleurs comptent toutes les fléchettes, quel que soit le mode de saisie. Les points blancs sont les impacts exacts, enregistrés quand tu joues en mode Cible.</p>`
+        : '<div class="empty">Pas encore de fléchettes enregistrées pour ce joueur.</div>'}
+      <button class="btn" data-hb="1">${back ? 'Retour aux résultats' : 'Fermer'}</button>`, !!back);
+    $$('#modal [data-hp]').forEach(b => b.addEventListener('click', () => { sel = +b.dataset.hp; draw(); }));
+    $('#modal [data-hb]').addEventListener('click', () => { if (back) back(); else closeModal(); });
+  };
+  draw();
+}
+
+/* =====================================================================
+   TROPHÉES
+   ===================================================================== */
+const TROPHIES = [
+  { id: 'ton', b: '100', name: 'La tonne', d: 'Faire 100 ou plus en une volée (01)' },
+  { id: 't140', b: '140', name: 'Ton-forty', d: 'Faire 140 ou plus en une volée' },
+  { id: 't180', b: '180', name: 'One hundred and eighty', d: 'Le maximum : trois triples 20' },
+  { id: 'bnb', b: '26', name: 'Bed & Breakfast', d: 'Faire 26 en une volée' },
+  { id: 'bnb3', b: '3×26', name: 'Client fidèle du B&B', d: 'Trois volées à 26 dans la même partie' },
+  { id: 'co100', b: '100+', name: 'Gros finish', d: 'Finir un leg sur un checkout de 100 ou plus' },
+  { id: 'bigfish', b: '170', name: 'Big Fish', d: 'Finir 170 : T20, T20, Bull' },
+  { id: 'bullout', b: 'BULL', name: 'Sortie royale', d: 'Finir un leg dans le Bull' },
+  { id: 'madhouse', b: 'D1', name: 'Évadé de la Madhouse', d: 'Finir un leg sur le double 1' },
+  { id: 'leg15', b: '15', name: 'Leg éclair', d: 'Gagner un leg de 501 en 15 fléchettes ou moins' },
+  { id: 'nine', b: '9', name: 'Nine-darter', d: 'Le leg parfait : 501 en 9 fléchettes' },
+  { id: 'avg60', b: '60', name: 'Moyenne de 60', d: 'Finir une partie de 01 avec 60 de moyenne ou plus' },
+  { id: 'avg80', b: '80', name: 'Niveau circuit', d: 'Finir une partie de 01 avec 80 de moyenne ou plus' },
+  { id: 'bust3', b: 'BUST', name: 'Jour sans', d: 'Trois busts dans le même leg' },
+  { id: 'bull3', b: '3×50', name: 'Œil de lynx', d: 'Trois Bulls (50) dans la même volée' },
+  { id: 'wh', b: 'WH', name: 'White Horse', d: 'Cricket : trois triples différents en une volée' },
+  { id: 'nine_marks', b: '9M', name: 'Neuf marques', d: 'Cricket : 9 marques en une volée' },
+  { id: 'mpr3', b: '3.0', name: 'Machine à marques', d: 'Cricket : finir une partie avec un MPR de 3 ou plus' },
+  { id: 'shanghai', b: 'SDT', name: 'Shanghai', d: 'Simple, double et triple du bon numéro en une volée' },
+  { id: 'clock40', b: '40', name: 'Horloger', d: "Boucler le tour de l'horloge en 40 fléchettes ou moins" },
+  { id: 'killer', b: 'KO', name: 'Tueur en série', d: 'Killer : éliminer tous tes adversaires (2 au moins)' },
+  { id: 'win1', b: '1RE', name: 'Première victoire', d: 'Gagner une partie' },
+  { id: 'win10', b: '10', name: 'Dix victoires', d: 'Gagner 10 parties' },
+  { id: 'games25', b: '25', name: 'Pilier de bar', d: 'Jouer 25 parties jusqu\'au bout' }
+];
+const pkey = p => p.name.trim().toLowerCase();
+function checkTrophies(st, turnChanged) {
+  const out = [], all = store.get('fl_trophies', {});
+  const un = (pi, id) => {
+    const p = st.players[pi]; if (!p) return;
+    const k = pkey(p); all[k] = all[k] || {};
+    if (all[k][id]) return;
+    all[k][id] = Date.now(); out.push({ name: p.name, color: p.color, id });
+    (S.game.trophies = S.game.trophies || []).push({ pi, id });
+  };
+  if (turnChanged && st.last && !st.abandoned) {
+    const l = st.last, pi = l.pi, p = st.players[pi], d = l.darts || [];
+    if (d.length === 3 && d.every(x => x.n === 25 && x.m === 2)) un(pi, 'bull3');
+    if (st.type === 'x01') {
+      const tot = l.total || 0;
+      if (!l.bust) {
+        if (tot >= 100) un(pi, 'ton'); if (tot >= 140) un(pi, 't140'); if (tot === 180) un(pi, 't180');
+        if (tot === 26) un(pi, 'bnb'); if ((p.s.bnb || 0) >= 3) un(pi, 'bnb3');
+      } else if ((p.legBusts || 0) >= 3) un(pi, 'bust3');
+      if (l.checkout) {
+        if (tot >= 100) un(pi, 'co100'); if (tot === 170) un(pi, 'bigfish');
+        const f = d[d.length - 1];
+        if (f && f.n === 25 && f.m === 2) un(pi, 'bullout');
+        if (f && f.n === 1 && f.m === 2) un(pi, 'madhouse');
+        const fx = st.fx.find(x => x.k === 'checkout');
+        if (fx && fx.nine) un(pi, 'nine');
+        if (fx && st.cfg.start === 501 && fx.darts <= 15) un(pi, 'leg15');
+      }
+    }
+    if (st.type === 'cricket') {
+      const tr = d.filter(x => x.m === 3 && x.n !== 25 && CR_T.includes(x.n));
+      if (tr.length === 3 && new Set(tr.map(x => x.n)).size === 3) un(pi, 'wh');
+      if ((l.marks || 0) >= 9) un(pi, 'nine_marks');
+    }
+    if (st.type === 'shanghai' && st.fx.some(x => x.k === 'shanghai')) un(pi, 'shanghai');
+  }
+  if (st.over && !st.abandoned && st.fx.length) {
+    const stats = store.get('fl_stats', {});
+    st.players.forEach((p, i) => {
+      const r = stats[pkey(p)] || { games: 0, wins: 0 }, win = st.winners.includes(i);
+      if (win) un(i, 'win1');
+      if (win && r.wins + 1 >= 10) un(i, 'win10');
+      if (r.games + 1 >= 25) un(i, 'games25');
+      if (st.type === 'x01' && p.s.darts >= 9) { const a = p.s.pts / p.s.darts * 3; if (a >= 60) un(i, 'avg60'); if (a >= 80) un(i, 'avg80'); }
+      if (st.type === 'cricket' && p.s.darts >= 9 && p.s.marks / (p.s.darts / 3) >= 3) un(i, 'mpr3');
+      if (st.type === 'clock' && win && p.s.darts <= 40) un(i, 'clock40');
+      if (st.type === 'killer' && win && p.s.kills >= 2 && p.s.kills === st.players.length - 1) un(i, 'killer');
+    });
+  }
+  if (out.length) store.set('fl_trophies', all);
+  return out;
+}
+const tq = []; let tShowing = false, tTimer = null;
+function trophyBanner(list) {
+  const g = {};
+  list.forEach(it => { (g[it.name] = g[it.name] || { name: it.name, color: it.color, ids: [] }).ids.push(it.id); });
+  tq.push(...Object.values(g)); if (!tShowing) nextBanner(1500);
+}
+function nextBanner(delay) {
+  const it = tq.shift(); if (!it) { tShowing = false; return; }
+  tShowing = true;
+  setTimeout(() => {
+    const trs = it.ids.map(id => TROPHIES.find(t => t.id === id)).filter(Boolean), el = $('#trophy');
+    if (!trs.length) { nextBanner(0); return; }
+    const best = trs[trs.length - 1];
+    el.innerHTML = trs.length === 1
+      ? `<div class="tb"><div class="medal on ${best.b.length > 3 ? 'sm' : ''}">${best.b}</div><div class="tb-t"><small>Trophée débloqué · ${esc(it.name)}</small><b>${best.name}</b><span>${best.d}</span></div></div>`
+      : `<div class="tb"><div class="medal on">×${trs.length}</div><div class="tb-t"><small>${trs.length} trophées débloqués · ${esc(it.name)}</small><b>${best.name}</b><span>${trs.map(t => t.name).join(' · ')}</span></div></div>`;
+    el.classList.add('show'); vibe([20, 60, 20]);
+    clearTimeout(tTimer); tTimer = setTimeout(closeBanner, 4200);
+  }, delay);
+}
+function closeBanner() { clearTimeout(tTimer); $('#trophy').classList.remove('show'); setTimeout(() => nextBanner(0), 350); }
+$('#trophy').addEventListener('click', closeBanner);
+
+function renderTrophies() {
+  const all = store.get('fl_trophies', {}), names = {};
+  Object.values(store.get('fl_stats', {})).forEach(r => { names[r.name.trim().toLowerCase()] = { name: r.name, color: r.color || '#ffc940' }; });
+  store.get('fl_roster', []).forEach(r => { const k = r.name.trim().toLowerCase(); if (!names[k]) names[k] = { name: r.name, color: '#ffc940' }; });
+  Object.keys(all).forEach(k => { if (!names[k]) names[k] = { name: k, color: '#ffc940' }; });
+  const keys = Object.keys(names).sort((a, b) => Object.keys(all[b] || {}).length - Object.keys(all[a] || {}).length);
+  const el = $('#tro-list');
+  if (!keys.length) { el.innerHTML = '<div class="empty">Pas encore de joueurs. Lance une partie : les trophées se débloquent en jouant.</div>'; return; }
+  if (!S.ui.tsel || !names[S.ui.tsel]) S.ui.tsel = keys[0];
+  const mine = all[S.ui.tsel] || {}, n = TROPHIES.filter(t => mine[t.id]).length;
+  el.innerHTML = `<div class="chips heat-chips">${keys.map(k => `<button class="chip ${k === S.ui.tsel ? 'on' : ''}" data-tp="${esc(k)}">${esc(names[k].name)}</button>`).join('')}</div>
+    <div class="tro-prog"><b>${n}</b> / ${TROPHIES.length} trophées<div class="bar"><i style="width:${n / TROPHIES.length * 100}%;--pc:var(--gold)"></i></div></div>
+    <div class="tro-grid">${TROPHIES.map(t => { const d = mine[t.id]; return `<div class="tcard ${d ? 'on' : ''}"><div class="medal ${d ? 'on' : ''} ${t.b.length > 3 ? 'sm' : ''}">${t.b}</div><div><b>${t.name}</b><small>${t.d}</small>${d ? `<em>Débloqué le ${new Date(d).toLocaleDateString('fr-FR')}</em>` : ''}</div></div>`; }).join('')}</div>`;
+  $$('#tro-list [data-tp]').forEach(b => b.addEventListener('click', () => { S.ui.tsel = b.dataset.tp; renderTrophies(); }));
+}
 
 /* ---------- Démarrage ---------- */
 renderHome();

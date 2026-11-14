@@ -33,6 +33,7 @@
     <div class="menu">
       <button class="tile" data-go="legends"><span class="ic">👑</span><b>Rois des fléchettes</b><small>Le Hall of Fame</small></button>
       <button class="tile" data-go="stats"><span class="ic">📊</span><b>Statistiques</b><small>Moyennes, 180, records</small></button>
+      <button class="tile" data-go="trophies"><span class="ic">🏅</span><b>Trophées</b><small>180, Big Fish, White Horse…</small></button>
       <button class="tile" data-go="rules"><span class="ic">📖</span><b>Règles</b><small>Tous les jeux expliqués</small></button>
       <button class="tile" data-go="settings"><span class="ic">⚙️</span><b>Réglages</b><small>Annonceur, écran…</small></button>
     </div>
@@ -71,7 +72,7 @@
   <!-- ============ JEU ============ -->
   <section id="game" class="screen">
     <div class="gtop">
-      <button class="icon-btn" id="g-home" aria-label="Accueil">⌂</button>
+      <button class="icon-btn" id="g-home" aria-label="Menu de la partie"><span class="burger"><i></i><i></i><i></i></span></button>
       <div class="gtitle" id="g-title"></div>
       <div class="seg-ctl" id="g-modes"></div>
     </div>
@@ -99,6 +100,15 @@
       <h2 class="title">Statistiques</h2>
     </div>
     <div id="stats-list"></div>
+  </section>
+
+  <!-- ============ TROPHÉES ============ -->
+  <section id="trophies" class="screen">
+    <div class="topbar">
+      <button class="icon-btn" data-go="home" aria-label="Retour">←</button>
+      <h2 class="title">Trophées</h2>
+    </div>
+    <div id="tro-list"></div>
   </section>
 
   <!-- ============ RÈGLES ============ -->
@@ -158,6 +168,7 @@
 <div id="fx"></div>
 <div id="modal"></div>
 <div id="toast"></div>
+<div id="trophy"></div>
 <script src="app.js"></script>
 </body>
 </html>
