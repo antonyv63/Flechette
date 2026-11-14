@@ -484,7 +484,7 @@ const UI = {
       const l = st.last, p = st.players[l.pi];
       const ds = l.darts.length ? l.darts.map(dLabel).join(' · ') + ' = ' : '';
       if (l.bust) return `${esc(p.name)} : ${l.darts.map(dLabel).join(' · ')} <b>BUST</b>`;
-      if (l.checkout) return `${esc(p.name)} finit <b>${l.total}</b> 🎯`;
+      if (l.checkout) return `${esc(p.name)} finit <b>${l.total}</b>`;
       return `${esc(p.name)} : ${ds}<b>${l.total}</b> · reste ${l.rem}`;
     },
     stats(st) {
@@ -561,11 +561,11 @@ const UI = {
     title(st) { return `Killer · ${st.cfg.mode === 'double' ? 'Doubles' : 'Segments'}`; },
     score(st) {
       return cardsWrap(st, st.players.map((p, i) => pcard(p, i, st,
-        `<div class="knum">${p.num}</div><div class="lives">${'❤️'.repeat(p.lives)}${'🖤'.repeat(Math.max(0, st.cfg.lives - p.lives))}</div>${p.out ? '<div class="pc-tag red">☠️ Éliminé</div>' : p.killer ? '<div class="pc-tag red">🔪 Killer</div>' : '<div class="pc-tag">En attente</div>'}`, 'kcard')).join(''));
+        `<div class="knum">${p.num}</div><div class="lives">${'<i class="on"></i>'.repeat(p.lives)}${'<i></i>'.repeat(Math.max(0, st.cfg.lives - p.lives))}</div>${p.out ? '<div class="pc-tag red">Éliminé</div>' : p.killer ? '<div class="pc-tag red">Killer</div>' : '<div class="pc-tag">En attente</div>'}`, 'kcard')).join(''));
     },
     info(st) {
       const p = st.players[st.cur], z = st.cfg.mode === 'double' ? 'le double ' : 'le ';
-      return p.killer ? 'Tu es <b>KILLER</b> 🔪 vise les numéros adverses' : `Touche ${z}<b>${p.num}</b> pour devenir Killer`;
+      return p.killer ? 'Tu es <b>KILLER</b> : vise les numéros adverses' : `Touche ${z}<b>${p.num}</b> pour devenir Killer`;
     },
     hl(st) {
       const p = st.players[st.cur], own = {};
@@ -668,11 +668,11 @@ $('#modal').addEventListener('click', e => { if (e.target.id === 'modal' && !e.c
 let fxTimer = null;
 function showFx(o) {
   const el = $('#fx');
-  el.innerHTML = `<div class="fx-in ${o.cls || ''}">${o.tag ? `<div class="fx-tag">${o.tag}</div>` : ''}<div class="fx-big">${o.big}</div>${o.flames ? '<div class="fx-flames">🔥🔥🔥</div>' : ''}${o.sub ? `<div class="fx-sub">${o.sub}</div>` : ''}</div>`;
+  el.innerHTML = `<div class="fx-in ${o.cls || ''}">${o.tag ? `<div class="fx-tag">${o.tag}</div>` : ''}<div class="fx-big">${o.big}</div>${o.flames ? '' : ''}${o.sub ? `<div class="fx-sub">${o.sub}</div>` : ''}<div class="fx-hint">Touche pour continuer</div></div>`;
   el.classList.add('show');
   if (o.shake) { document.body.classList.remove('shake'); void document.body.offsetWidth; document.body.classList.add('shake'); }
   if (o.confetti) confetti(70);
-  clearTimeout(fxTimer); fxTimer = setTimeout(hideFx, o.dur || 1500);
+  clearTimeout(fxTimer); fxTimer = setTimeout(hideFx, o.dur || 2500);
 }
 function hideFx() { $('#fx').classList.remove('show'); document.body.classList.remove('shake'); }
 $('#fx').addEventListener('click', hideFx);
@@ -762,12 +762,12 @@ function renderPlayers() {
   $('#plist').innerHTML = su.players.map((p, i) => `<div class="prow">
       <button class="swatch" style="--pc:${p.color}" data-pcol="${i}" aria-label="Couleur">${i + 1}</button>
       <div class="pmain"><input data-pname="${i}" value="${esc(p.name)}" placeholder="Joueur ${i + 1}" maxlength="16" autocomplete="off" autocapitalize="words"><div class="nick">${p.nick ? '« ' + esc(p.nick) + ' »' : ''}</div></div>
-      <button class="pbtn" data-pnick="${i}" aria-label="Surnom">🎲</button>
-      ${su.players.length > 1 ? `<button class="pbtn" data-pdel="${i}" aria-label="Retirer">✕</button>` : ''}
+      <button class="pbtn" data-pnick="${i}" aria-label="Surnom">Surnom</button>
+      ${su.players.length > 1 ? `<button class="pbtn" data-pdel="${i}" aria-label="Retirer">Retirer</button>` : ''}
     </div>`).join('');
   const names = new Set(su.players.map(p => p.name.trim().toLowerCase()));
   const roster = store.get('fl_roster', []).filter(r => !names.has(r.name.toLowerCase()));
-  $('#roster').innerHTML = roster.length && su.players.length < 8 ? roster.slice(0, 12).map(r => `<button class="chip" data-radd="${esc(r.name)}">＋ ${esc(r.name)}</button>`).join('') : '';
+  $('#roster').innerHTML = roster.length && su.players.length < 8 ? roster.slice(0, 12).map(r => `<button class="chip" data-radd="${esc(r.name)}">${esc(r.name)}</button>`).join('') : '';
   $('#padd').disabled = su.players.length >= 8;
 }
 const saveSetup = () => store.set('fl_setup', S.setup);
@@ -781,7 +781,7 @@ $('#setup').addEventListener('click', e => {
   else if (t.dataset.pdel != null) { su.players.splice(+t.dataset.pdel, 1); renderPlayers(); }
   else if (t.dataset.radd != null) { const r = store.get('fl_roster', []).find(x => x.name === t.dataset.radd); su.players.push({ name: t.dataset.radd, color: freeColor(), nick: r && r.nick || '' }); renderPlayers(); }
   else if (t.id === 'padd') { if (su.players.length < 8) { su.players.push({ name: '', color: freeColor(), nick: '' }); renderPlayers(); const ins = $$('#plist input'); ins[ins.length - 1].focus(); } }
-  else if (t.id === 'pshuffle') { shuffle(su.players); renderPlayers(); toast('Ordre mélangé 🔀'); }
+  else if (t.id === 'pshuffle') { shuffle(su.players); renderPlayers(); toast('Ordre mélangé'); }
   else if (t.id === 'start') { startGame(); }
   saveSetup();
 });
@@ -802,7 +802,7 @@ function newGame(type, cfg, players) {
   S.st = replay(S.game); S.ui.endShown = false; S.ui.marks = []; S.ui.buf = ''; S.ui.mod = 1; S.ui.lastTurn = 0;
   saveCur(); closeModal(); show('game'); renderGame();
   const f = players[0];
-  showFx({ tag: TYPE_L[type] === '01' ? String(cfg.start) : TYPE_L[type].toUpperCase(), big: 'GAME ON !', sub: `${esc(f.name)} lance en premier`, dur: 1300 });
+  showFx({ tag: TYPE_L[type] === '01' ? String(cfg.start) : TYPE_L[type].toUpperCase(), big: 'GAME ON !', sub: `${esc(f.name)} lance en premier`, dur: 2200 });
   say([SET.lang === 'fr' ? `Game on ! ${f.name}, à toi.` : `Game on! ${f.name} to throw first.`]);
 }
 function saveCur() { if (!S.game) return; S.game.over = S.st.over; store.set('fl_current', S.game); }
@@ -825,7 +825,7 @@ function renderGame() {
   renderInput(st, crPad);
 }
 function turnHTML(st) {
-  if (st.over) return `<div class="turn over">🏆 Partie terminée : ${st.winners.map(i => esc(st.players[i].name)).join(' & ')}</div>`;
+  if (st.over) return `<div class="turn over">Partie terminée : ${st.winners.map(i => esc(st.players[i].name)).join(' & ')}</div>`;
   const p = st.players[st.cur], U = UI[st.type];
   const slots = [0, 1, 2].map(i => {
     const d = st.darts[i];
@@ -839,9 +839,9 @@ function turnHTML(st) {
 }
 function renderInput(st, crPad) {
   const el = $('#g-input'), act = $('#g-actions');
-  const undoBtn = `<button class="act" data-act="undo" ${S.game.events.length ? '' : 'disabled'}>↩ Annuler</button>`;
+  const undoBtn = `<button class="act" data-act="undo" ${S.game.events.length ? '' : 'disabled'}>Annuler</button>`;
   if (st.over) {
-    el.innerHTML = `<button class="btn primary" data-act="end">🏆 Voir le résultat</button>`;
+    el.innerHTML = `<button class="btn primary" data-act="end">VOIR LE RÉSULTAT</button>`;
     act.className = 'actions one'; act.innerHTML = undoBtn; return;
   }
   if (S.ui.input === 'board') {
@@ -855,7 +855,7 @@ function renderInput(st, crPad) {
   else if (crPad) el.innerHTML = '';
   else el.innerHTML = padHTML(st);
   if (S.ui.input === 'total') { act.className = 'actions one'; act.innerHTML = undoBtn; }
-  else { act.className = 'actions'; act.innerHTML = `${undoBtn}<button class="act miss" data-act="miss">RATÉ</button><button class="act" data-act="next">Fin de volée ⏭</button>`; }
+  else { act.className = 'actions'; act.innerHTML = `${undoBtn}<button class="act miss" data-act="miss">RATÉ</button><button class="act" data-act="next">Volée suivante</button>`; }
 }
 function padHTML(st) {
   const h = UI[st.type].hl ? UI[st.type].hl(st) : {}, m = S.ui.mod, hs = h.set || new Set();
@@ -869,7 +869,7 @@ function padHTML(st) {
 function totalHTML(st) {
   const b = S.ui.buf, q = [26, 41, 45, 60, 81, 85, 100, 140, 180];
   const p = st.players[st.cur];
-  const fin = p.score <= 180 && !(st.cfg.out !== 'single' && !checkout(p.score, 3, st.cfg.out)) ? `<button class="chip" data-q="${p.score}" style="background:var(--gold);color:#1a1200">🎯 ${p.score}</button>` : '';
+  const fin = p.score <= 180 && !(st.cfg.out !== 'single' && !checkout(p.score, 3, st.cfg.out)) ? `<button class="chip" data-q="${p.score}" style="background:var(--gold);color:#1a1200">Finish ${p.score}</button>` : '';
   return `<div class="tot"><div class="tot-disp ${b ? '' : 'ph'}">${b || 'Tape le score de ta volée'}</div>
     <div class="tot-quick">${fin}${q.map(v => `<button class="chip" data-q="${v}">${v}</button>`).join('')}</div>
     <div class="tot-keys">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(k => `<button class="num" data-k="${k}">${k}</button>`).join('')}<button class="num" data-k="del">⌫</button><button class="num" data-k="0">0</button><button class="num ok" data-k="ok">OK</button></div></div>`;
@@ -901,7 +901,7 @@ function submitTotal(t) {
     let k = 0; for (let i = 1; i <= 3; i++) if (checkout(t, i, out)) { k = i; break; }
     if (!k) { toast(`Impossible de finir ${t} en ${out === 'double' ? 'double' : 'master'} out`); renderGame(); return; }
     if (k === 3) { push({ t: 'v', total: t, nd: 3 }); return; }
-    modal(`<h3>Game shot ! 🎯</h3><p>En combien de fléchettes as-tu fini ${t} ?</p><div class="row3">${[1, 2, 3].map(i => `<button class="btn" data-nd="${i}" ${i < k ? 'disabled' : ''}>${i}</button>`).join('')}</div>`);
+    modal(`<h3>Game shot !</h3><p>En combien de fléchettes as-tu fini ${t} ?</p><div class="row3">${[1, 2, 3].map(i => `<button class="btn" data-nd="${i}" ${i < k ? 'disabled' : ''}>${i}</button>`).join('')}</div>`);
     $$('#modal [data-nd]').forEach(b => b.addEventListener('click', () => { closeModal(); push({ t: 'v', total: t, nd: +b.dataset.nd }); }));
     return;
   }
@@ -948,7 +948,7 @@ $('#game').addEventListener('click', e => {
   if (t.dataset.n != null && t.closest('.pad')) {
     let n = +t.dataset.n, m = S.ui.mod;
     if (n === 50) { n = 25; m = 2; }
-    else if (n === 25 && m === 3) { toast('Pas de triple Bull 😉'); S.ui.mod = 1; renderInput(st, false); return; }
+    else if (n === 25 && m === 3) { toast('Pas de triple Bull'); S.ui.mod = 1; renderInput(st, false); return; }
     throwDart(n, m);
   }
 });
@@ -963,46 +963,46 @@ function handleFx(st) {
     switch (f.k) {
       case 'bust':
         lines.push(en ? 'No score' : 'Bust !');
-        setOv({ big: 'BUST !', sub: rnd(T.bust), cls: 'bust', dur: 1200 }, 3); break;
+        setOv({ big: 'BUST !', sub: rnd(T.bust), cls: 'bust', dur: 2500 }, 3); break;
       case 'visit': {
         const t = f.total;
         lines.push(t === 180 ? (en ? 'One hundred and eighty!' : 'Cent quatre-vingts !') : t === 0 ? (en ? 'No score' : 'Zéro') : String(t));
-        if (t === 180) setOv({ tag: 'ONE HUNDRED AND EIGHTY', big: '180', sub: rnd(T.t180), cls: 'fire', flames: true, shake: true, confetti: true, dur: 2300 }, 8);
-        else if (t >= 140) setOv({ tag: 'TON PLUS', big: String(t), sub: rnd(T.t140), cls: 'fire', dur: 1500 }, 5);
-        else if (t >= 100) setOv({ tag: 'TON !', big: String(t), sub: rnd(T.t100), dur: 1300 }, 4);
-        else if (t === 26) setOv({ tag: 'BED & BREAKFAST 🍳', big: '26', sub: rnd(T.bnb), cls: 'cool', dur: 1600 }, 2);
-        else if (t === 0) setOv({ big: 'NO SCORE', sub: rnd(T.zero), cls: 'bust', dur: 1100 }, 1);
-        if (f.rem === 2) delayToast = 'Madhouse 🏚️ il te reste le double 1…';
+        if (t === 180) setOv({ tag: 'ONE HUNDRED AND EIGHTY', big: '180', sub: rnd(T.t180), cls: 'fire', flames: true, shake: true, confetti: true, dur: 4000 }, 8);
+        else if (t >= 140) setOv({ tag: 'TON PLUS', big: String(t), sub: rnd(T.t140), cls: 'fire', dur: 3000 }, 5);
+        else if (t >= 100) setOv({ tag: 'TON !', big: String(t), sub: rnd(T.t100), dur: 2600 }, 4);
+        else if (t === 26) setOv({ tag: 'BED & BREAKFAST', big: '26', sub: rnd(T.bnb), cls: 'cool', dur: 3800 }, 2);
+        else if (t === 0) setOv({ big: 'NO SCORE', sub: rnd(T.zero), cls: 'bust', dur: 2200 }, 1);
+        if (f.rem === 2) delayToast = 'Madhouse : il te reste le double 1';
         break;
       }
       case 'checkout': {
         lines.push(en ? (f.match ? 'Game shot, and the match!' : f.setWon ? 'Game shot, and the set!' : 'Game shot, and the leg!') : (f.match ? 'Game shot, et le match !' : f.setWon ? 'Game shot, et le set !' : 'Game shot, et le leg !'));
-        const big = f.nine ? '9 DARTS !!!' : f.total === 170 ? 'BIG FISH 🐟' : 'GAME SHOT';
+        const big = f.nine ? '9 DARTS !!!' : f.total === 170 ? 'BIG FISH' : 'GAME SHOT';
         let sub = f.nine ? 'La perfection : 501 en neuf fléchettes. John Lowe fut le premier à le faire à la télé, en 1984.'
           : `${nm} finit <b>${f.total}</b>${f.total >= 100 ? ', énorme finish !' : ''} en ${f.darts} fléchettes.`;
         if (!f.match) { const nx = P[st.cur]; sub += `<br>${f.setWon ? 'Set' : 'Leg'} pour ${nm}. ${esc(nx.name)} commence le suivant.`; }
-        setOv({ tag: f.match ? 'AND THE MATCH' : f.setWon ? 'AND THE SET' : 'AND THE LEG', big, sub, cls: f.nine || f.total === 170 ? 'fire' : '', confetti: f.nine || f.total >= 100, shake: f.nine, dur: f.nine ? 3200 : 2100 }, f.nine ? 10 : 9);
+        setOv({ tag: f.match ? 'AND THE MATCH' : f.setWon ? 'AND THE SET' : 'AND THE LEG', big, sub, cls: f.nine || f.total === 170 ? 'fire' : '', confetti: f.nine || f.total >= 100, shake: f.nine, dur: f.nine ? 5500 : 3500 }, f.nine ? 10 : 9);
         break;
       }
       case 'crv':
-        if (f.wh) { setOv({ tag: 'WHITE HORSE 🐎', big: '9 ✕', sub: 'Trois triples différents dans la même volée !', cls: 'fire', confetti: true, dur: 2000 }, 7); lines.push('White horse!'); }
-        else if (f.marks >= 9) { setOv({ big: '9 MARQUES', sub: 'Volée parfaite !', cls: 'fire', dur: 1800 }, 6); lines.push(en ? 'Nine marks!' : 'Neuf marques !'); }
-        else if (f.marks >= 6) { setOv({ big: `${f.marks} MARQUES`, sub: 'Grosse volée de cricket.', dur: 1200 }, 3); lines.push(en ? `${f.marks} marks` : `${f.marks} marques`); }
+        if (f.wh) { setOv({ tag: 'WHITE HORSE', big: '9 ✕', sub: 'Trois triples différents dans la même volée !', cls: 'fire', confetti: true, dur: 3800 }, 7); lines.push('White horse!'); }
+        else if (f.marks >= 9) { setOv({ big: '9 MARQUES', sub: 'Volée parfaite !', cls: 'fire', dur: 3200 }, 6); lines.push(en ? 'Nine marks!' : 'Neuf marques !'); }
+        else if (f.marks >= 6) { setOv({ big: `${f.marks} MARQUES`, sub: 'Grosse volée de cricket.', dur: 2400 }, 3); lines.push(en ? `${f.marks} marks` : `${f.marks} marques`); }
         break;
       case 'shanghai':
-        setOv({ tag: '🏮 SIMPLE · DOUBLE · TRIPLE', big: 'SHANGHAI !', sub: `${nm} gagne sur le coup !`, cls: 'fire', confetti: true, shake: true, dur: 2400 }, 9);
+        setOv({ tag: 'SIMPLE · DOUBLE · TRIPLE', big: 'SHANGHAI !', sub: `${nm} gagne sur le coup !`, cls: 'fire', confetti: true, shake: true, dur: 4000 }, 9);
         lines.push('Shanghai!'); break;
       case 'sh':
         if (f.total > 0) lines.push(String(f.total)); break;
       case 'killer':
-        setOv({ big: 'KILLER ! 🔪', sub: `${nm} est armé. Méfiez-vous…`, cls: 'bust', dur: 1500 }, 5);
+        setOv({ big: 'KILLER !', sub: `${nm} est armé. Méfiez-vous…`, cls: 'bust', dur: 3000 }, 5);
         lines.push(en ? `${p.name} is a killer!` : `${p.name} devient killer !`); break;
       case 'oops':
-        setOv({ big: 'AÏE ! 🤕', sub: 'Tir dans le pied : tu perds une vie.', cls: 'bust', dur: 1400 }, 4); break;
+        setOv({ big: 'AÏE !', sub: 'Tir dans le pied : tu perds une vie.', cls: 'bust', dur: 2600 }, 4); break;
       case 'hit':
-        lines.push(en ? `${p.name} loses a life` : `${p.name} perd une vie`); setOv({ big: '−1 ❤️', sub: `${nm} perd une vie`, cls: 'bust', dur: 900 }, 2); break;
+        lines.push(en ? `${p.name} loses a life` : `${p.name} perd une vie`); setOv({ big: '−1 VIE', sub: `${nm} perd une vie`, cls: 'bust', dur: 2000 }, 2); break;
       case 'elim':
-        setOv({ big: '☠️ ÉLIMINÉ', sub: `${nm} est hors-jeu !`, cls: 'bust', dur: 1700 }, 6);
+        setOv({ big: 'ÉLIMINÉ', sub: `${nm} est hors-jeu !`, cls: 'bust', dur: 3200 }, 6);
         lines.push(en ? `${p.name} is out!` : `${p.name} est éliminé !`); break;
       case 'win':
         if (st.type !== 'x01') lines.push(en ? `Game shot! ${p.name} wins!` : `Game shot ! ${p.name} gagne !`);
@@ -1017,7 +1017,7 @@ function handleFx(st) {
   if (ov) showFx(ov);
   if (delayToast) setTimeout(() => toast(delayToast), 800);
   say(lines);
-  if (st.over) setTimeout(showEnd, ov ? (ov.dur || 1500) + 100 : 500);
+  if (st.over) setTimeout(showEnd, ov ? Math.min(ov.dur || 2500, 3000) + 100 : 500);
 }
 
 /* ---------- Fin de partie ---------- */
@@ -1025,14 +1025,14 @@ function showEnd() {
   const st = S.st; if (!st || !st.over || S.ui.endShown) return;
   S.ui.endShown = true; hideFx();
   const W = st.winners.map(i => st.players[i]), rows = UI[st.type].stats(st);
-  const html = `<div class="end"><div class="trophy">🏆</div><div class="end-tag">${W.length > 1 ? 'ÉGALITÉ' : 'VICTOIRE'}</div>
+  const html = `<div class="end"><div class="end-tag">${W.length > 1 ? 'ÉGALITÉ' : 'VICTOIRE'}</div>
     <h2>${W.map(p => esc(p.name)).join(' & ')}</h2><p class="end-sub">${rnd(T.win)}</p>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th></th>${st.players.map(p => `<th style="color:${p.color}">${esc(p.name)}</th>`).join('')}</tr></thead>
     <tbody>${rows.map(r => `<tr><td>${r[0]}</td>${r.slice(1).map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-    <button class="btn primary" data-end="rematch">🔁 REVANCHE</button>
+    <button class="btn primary" data-end="rematch">REVANCHE</button>
     <button class="btn" data-end="new">Nouvelle partie</button>
     <button class="btn" data-end="home">Accueil</button>
-    <button class="btn ghost" data-end="undo">↩ Annuler la dernière fléchette</button></div>`;
+    <button class="btn ghost" data-end="undo">Annuler la dernière fléchette</button></div>`;
   modal(html, true); confetti(110);
   $$('#modal [data-end]').forEach(b => b.addEventListener('click', () => {
     const a = b.dataset.end;
@@ -1106,7 +1106,7 @@ function renderSettings() {
   ];
   $('#set-list').innerHTML = rows.map(([k, l, d]) => `<div class="set-row"><div><b>${l}</b><small>${d}</small></div><button class="sw ${SET[k] ? 'on' : ''}" data-sw="${k}" aria-label="${l}"></button></div>`).join('') +
     `<div class="set-row"><div><b>🗣️ Langue de l'annonceur</b><small>L'anglais, c'est plus pro !</small></div><div class="chips"><button class="chip ${SET.lang === 'en' ? 'on' : ''}" data-lang="en">English</button><button class="chip ${SET.lang === 'fr' ? 'on' : ''}" data-lang="fr">Français</button></div></div>
-     <button class="btn" id="test-voice">🔊 Tester l'annonceur</button>
+     <button class="btn" id="test-voice">Tester l'annonceur</button>
      <button class="btn ghost" id="reset-all">Tout réinitialiser (joueurs, stats, partie en cours)</button>
      <p class="intro" style="text-align:center;font-size:12px;margin-top:20px">Fléchette 🎯 · Astuce : sur iPhone, Partager → « Sur l'écran d'accueil » pour l'avoir comme une vraie appli.</p>`;
 }
