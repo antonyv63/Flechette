@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#06100b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fléchette">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Fléchette 🎯</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main id="app">
+
+  <!-- ============ ACCUEIL ============ -->
+  <section id="home" class="screen active">
+    <div class="hero">
+      <div class="hero-board" id="hero-board"></div>
+      <h1 class="logo">FLÉCHETTE</h1>
+      <div class="tagline">Game on&nbsp;! 🎯</div>
+    </div>
+
+    <button class="btn primary big" data-go="setup">NOUVELLE PARTIE</button>
+    <button class="btn resume" id="btn-resume" hidden>
+      <span>▶ Reprendre la partie</span><small id="resume-desc"></small>
+    </button>
+
+    <div class="menu">
+      <button class="tile" data-go="legends"><span class="ic">👑</span><b>Rois des fléchettes</b><small>Le Hall of Fame</small></button>
+      <button class="tile" data-go="stats"><span class="ic">📊</span><b>Statistiques</b><small>Moyennes, 180, records</small></button>
+      <button class="tile" data-go="rules"><span class="ic">📖</span><b>Règles</b><small>Tous les jeux expliqués</small></button>
+      <button class="tile" data-go="settings"><span class="ic">⚙️</span><b>Réglages</b><small>Annonceur, écran…</small></button>
+    </div>
+
+    <div class="legend-day" id="legend-day"></div>
+
+    <button class="fact" id="fact">
+      <div class="fact-h">💡 Le saviez-vous&nbsp;?</div>
+      <div class="fact-t" id="fact-t"></div>
+      <div class="fact-more">Touchez pour une autre anecdote</div>
+    </button>
+  </section>
+
+  <!-- ============ CONFIG ============ -->
+  <section id="setup" class="screen">
+    <div class="topbar">
+      <button class="icon-btn" data-go="home" aria-label="Retour">←</button>
+      <h2 class="title">Nouvelle partie</h2>
+    </div>
+    <h3 class="sec">Le jeu</h3>
+    <div class="gtypes" id="gtypes"></div>
+    <div id="gopts"></div>
+    <h3 class="sec">Les joueurs <span class="muted" id="pcount"></span></h3>
+    <div id="plist"></div>
+    <div class="prow-actions">
+      <button class="btn small" id="padd">＋ Joueur</button>
+      <button class="btn small" id="pshuffle">🔀 Mélanger l'ordre</button>
+    </div>
+    <div class="roster" id="roster"></div>
+    <button class="btn primary big sticky" id="start">GAME ON&nbsp;!</button>
+  </section>
+
+  <!-- ============ JEU ============ -->
+  <section id="game" class="screen">
+    <div class="gtop">
+      <button class="icon-btn" id="g-home" aria-label="Accueil">⌂</button>
+      <div class="gtitle" id="g-title"></div>
+      <div class="seg-ctl" id="g-modes"></div>
+    </div>
+    <div id="g-score"></div>
+    <div id="g-turn"></div>
+    <div id="g-last"></div>
+    <div id="g-input"></div>
+    <div class="actions" id="g-actions"></div>
+  </section>
+
+  <!-- ============ LÉGENDES ============ -->
+  <section id="legends" class="screen">
+    <div class="topbar">
+      <button class="icon-btn" data-go="home" aria-label="Retour">←</button>
+      <h2 class="title">Les rois des fléchettes</h2>
+    </div>
+    <p class="intro">De l'époque des pubs enfumés aux millions de l'Ally Pally&nbsp;: ceux qui ont fait l'histoire du jeu.</p>
+    <div id="legend-list"></div>
+  </section>
+
+  <!-- ============ STATS ============ -->
+  <section id="stats" class="screen">
+    <div class="topbar">
+      <button class="icon-btn" data-go="home" aria-label="Retour">←</button>
+      <h2 class="title">Statistiques</h2>
+    </div>
+    <div id="stats-list"></div>
+  </section>
+
+  <!-- ============ RÈGLES ============ -->
+  <section id="rules" class="screen">
+    <div class="topbar">
+      <button class="icon-btn" data-go="home" aria-label="Retour">←</button>
+      <h2 class="title">Règles</h2>
+    </div>
+    <details open>
+      <summary>🎯 01 (101, 301, 501…)</summary>
+      <p>Chaque joueur part du même score (101 à 901) et le fait descendre à <b>zéro pile</b>. On lance 3 fléchettes par volée, le score de la volée est soustrait.</p>
+      <p><b>Double out</b> (la règle pro)&nbsp;: la dernière fléchette doit tomber dans un double ou le Bull (50). <b>Master out</b>&nbsp;: double ou triple. <b>Simple out</b>&nbsp;: n'importe quelle zone.</p>
+      <p><b>Bust</b>&nbsp;: si tu passes sous zéro, si tu tombes sur 1 (en double out) ou si tu finis à 0 sans double, la volée est annulée et tu reprends le score d'avant.</p>
+      <p><b>Double in</b> (option)&nbsp;: il faut toucher un double pour commencer à marquer.</p>
+      <p>L'appli te souffle le meilleur finish dès que c'est possible (ex. 170 = T20 · T20 · Bull).</p>
+    </details>
+    <details>
+      <summary>🏏 Cricket</summary>
+      <p>On ne joue que le 20, 19, 18, 17, 16, 15 et le Bull. Il faut toucher chaque numéro 3 fois pour le <b>fermer</b> (simple = 1 marque, double = 2, triple = 3).</p>
+      <p><b>Classique</b>&nbsp;: une fois un numéro fermé, chaque touche en plus te rapporte des points tant que l'adversaire ne l'a pas fermé. Gagne celui qui ferme tout avec autant ou plus de points.</p>
+      <p><b>Cut-throat</b>&nbsp;: c'est l'inverse, tes points en trop vont chez les adversaires qui n'ont pas fermé. Gagne celui qui ferme tout avec le moins de points.</p>
+      <p><b>Sans points</b>&nbsp;: le premier qui ferme tout gagne.</p>
+      <p>MPR = marques par volée, la stat de référence au cricket.</p>
+    </details>
+    <details>
+      <summary>🕐 Tour de l'horloge</summary>
+      <p>Touche les numéros dans l'ordre, de 1 à 20 (ou de 20 à 1), puis le Bull si l'option est activée. Le premier qui termine gagne.</p>
+      <p><b>Bonus D/T</b>&nbsp;: un double fait avancer de 2 cases, un triple de 3. <b>Doubles</b> ou <b>Triples</b>&nbsp;: seule cette zone compte, pour s'entraîner.</p>
+    </details>
+    <details>
+      <summary>🏮 Shanghai</summary>
+      <p>Manche 1, on vise le 1&nbsp;; manche 2, le 2&nbsp;; etc. Seules les touches sur le numéro de la manche comptent (simple ×1, double ×2, triple ×3).</p>
+      <p><b>SHANGHAI</b>&nbsp;: simple + double + triple du bon numéro dans la même volée = victoire immédiate. Sinon, le plus gros total à la fin gagne.</p>
+    </details>
+    <details>
+      <summary>🔪 Killer</summary>
+      <p>Chaque joueur reçoit un numéro au hasard. Touche le double de ton numéro pour devenir <b>Killer</b>.</p>
+      <p>Une fois Killer, chaque double touché chez un adversaire lui retire une vie. Attention&nbsp;: si tu touches ton propre double, c'est toi qui perds une vie&nbsp;! Le dernier en vie gagne.</p>
+      <p>Variante <b>Tout le segment</b>&nbsp;: toute la part du numéro compte (simple = 1 vie, double = 2, triple = 3).</p>
+    </details>
+    <details>
+      <summary>🗣️ Le jargon</summary>
+      <p><b>Ton</b>&nbsp;: une volée de 100 ou plus. <b>180</b>&nbsp;: le maximum, trois triples 20. <b>Big Fish</b>&nbsp;: le finish 170. <b>Bed &amp; Breakfast</b>&nbsp;: 26 (20, 5, 1). <b>Madhouse</b>&nbsp;: devoir finir sur le double 1. <b>Oche</b>&nbsp;: la ligne de tir. <b>Nine-darter</b>&nbsp;: un 501 parfait en 9 fléchettes. <b>Game shot</b>&nbsp;: le finish qui gagne le leg.</p>
+    </details>
+  </section>
+
+  <!-- ============ RÉGLAGES ============ -->
+  <section id="settings" class="screen">
+    <div class="topbar">
+      <button class="icon-btn" data-go="home" aria-label="Retour">←</button>
+      <h2 class="title">Réglages</h2>
+    </div>
+    <div id="set-list"></div>
+  </section>
+</main>
+
+<div id="fx"></div>
+<div id="modal"></div>
+<div id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
