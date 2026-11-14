@@ -85,7 +85,7 @@ const T = {
 };
 
 /* ---------- Réglages ---------- */
-const DEF_SET = { caller: true, lang: 'en', vibe: true, wake: true, input: 'pad' };
+const DEF_SET = { caller: true, loud: true, lang: 'en', vibe: true, wake: true, input: 'pad' };
 let SET = Object.assign({}, DEF_SET, store.get('fl_settings', {}));
 const saveSet = () => store.set('fl_settings', SET);
 
@@ -99,18 +99,51 @@ function pickVoice(lang) {
   return same.find(v => /daniel|arthur|male|homme|thomas/i.test(v.name)) || same[0] ||
     voices.find(v => v.lang && v.lang.toLowerCase().startsWith(l.slice(0, 2)));
 }
+/* iOS coupe la synthèse vocale quand le téléphone est en silencieux.
+   Parade : on bascule la session audio de la page en mode « lecture »
+   (API Audio Session de Safari) et on joue un son muet en boucle pendant l'annonce,
+   ce qui fait sortir la voix même avec le bouton silencieux activé. */
+let silentEl = null, silentStop = null;
+function silentWavURL() {
+  const rate = 8000, n = rate / 2, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate, true);
+  v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, 'data'); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+function audioOn() {
+  if (!SET.loud) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = 'transient'; } catch (e) {}
+  try {
+    if (!silentEl) { silentEl = new Audio(silentWavURL()); silentEl.loop = true; silentEl.setAttribute('playsinline', ''); }
+    clearTimeout(silentStop);
+    const pr = silentEl.play(); if (pr && pr.catch) pr.catch(() => {});
+  } catch (e) {}
+}
+function audioOff(delay = 400) {
+  clearTimeout(silentStop);
+  silentStop = setTimeout(() => {
+    try { if (silentEl) silentEl.pause(); } catch (e) {}
+    try { if (navigator.audioSession) navigator.audioSession.type = 'auto'; } catch (e) {}
+  }, delay);
+}
 function say(lines) {
   if (!SET.caller || !('speechSynthesis' in window) || !lines || !lines.length) return;
   try {
     speechSynthesis.cancel();
+    audioOn();
     const lang = SET.lang === 'fr' ? 'fr-FR' : 'en-GB';
     const v = pickVoice(lang);
-    lines.forEach(t => {
+    lines.forEach((t, i) => {
       const u = new SpeechSynthesisUtterance(t);
       u.lang = lang; if (v) u.voice = v;
       u.rate = SET.lang === 'fr' ? 1.02 : 0.95; u.pitch = 0.95;
+      if (i === lines.length - 1) { u.onend = () => audioOff(); u.onerror = () => audioOff(); }
       speechSynthesis.speak(u);
     });
+    audioOff(15000); // filet de sécurité si onend ne se déclenche pas
   } catch (e) {}
 }
 const vibe = ms => { if (SET.vibe && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) {} };
@@ -1067,6 +1100,7 @@ function renderLegends() { if (!$('#legend-list').innerHTML) $('#legend-list').i
 function renderSettings() {
   const rows = [
     ['caller', '🎙️ Annonceur', 'Annonce les scores comme à l\'Ally Pally (« One hundred and eighty! »)'],
+    ['loud', '🔕 Parler même en silencieux', 'L\'annonceur parle même si le bouton silencieux de l\'iPhone est activé'],
     ['vibe', '📳 Vibrations', 'Petit retour haptique à chaque fléchette (Android)'],
     ['wake', '🔆 Écran toujours allumé', 'Empêche l\'écran de se mettre en veille pendant une partie']
   ];
